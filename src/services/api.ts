@@ -17,6 +17,7 @@ import {
 import { API_BASE_URL } from '../config/env';
 
 class ApiService {
+  // Helper para montar o cabeçalho com o Token
   private getAuthHeaders(): HeadersInit {
     const token = localStorage.getItem('token');
     return {
@@ -25,12 +26,22 @@ class ApiService {
     };
   }
 
+  // Helper para tratar a resposta da API
   private async handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'Unknown error' }));
-      throw { message: error.message || 'Request failed', status: response.status };
+      // Tenta ler o erro enviado pelo backend, se não conseguir, usa erro genérico
+      const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }));
+      
+      // Se der erro 401 (Não autorizado), pode ser útil deslogar o usuário
+      if (response.status === 401) {
+        console.warn('Sessão expirada ou inválida');
+        // localStorage.removeItem('token'); // Opcional: forçar logout
+      }
+      
+      throw { message: error.message || 'Falha na requisição', status: response.status };
     }
     
+    // Status 204 (No Content) não tem JSON para ler
     if (response.status === 204) {
       return null as T;
     }
@@ -38,15 +49,16 @@ class ApiService {
     return response.json();
   }
 
-  // Auth - CORRIGIDO: Adicionado o prefixo /auth para casar com o Gateway
+  // ==========================================================
+  // AUTH SERVICE (Gateway rota: /auth/**)
+  // ==========================================================
   async login(credentials: LoginCredentials): Promise<AuthResponse> {
     const response = await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
-    const result = await this.handleResponse<AuthResponse>(response);
-    return result;
+    return this.handleResponse<AuthResponse>(response);
   }
 
   async register(credentials: RegisterCredentials): Promise<AuthResponse> {
@@ -55,11 +67,12 @@ class ApiService {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(credentials),
     });
-    const result = await this.handleResponse<AuthResponse>(response);
-    return result;
+    return this.handleResponse<AuthResponse>(response);
   }
 
-  // Patients - CRUD Completo
+  // ==========================================================
+  // PATIENTS SERVICE (Gateway rota: /patients/**)
+  // ==========================================================
   async getPatients(): Promise<Patient[]> {
     const response = await fetch(`${API_BASE_URL}/patients`, {
       headers: this.getAuthHeaders(),
@@ -100,7 +113,9 @@ class ApiService {
     return this.handleResponse<void>(response);
   }
 
-  // Doctors - CRUD Completo
+  // ==========================================================
+  // DOCTORS - SCHEDULING SERVICE (Gateway rota: /doctors/**)
+  // ==========================================================
   async getDoctors(): Promise<Doctor[]> {
     const response = await fetch(`${API_BASE_URL}/doctors`, {
       headers: this.getAuthHeaders(),
@@ -141,7 +156,9 @@ class ApiService {
     return this.handleResponse<void>(response);
   }
 
-  // Appointments - CRUD Completo
+  // ==========================================================
+  // APPOINTMENTS - SCHEDULING SERVICE (Gateway rota: /appointments/**)
+  // ==========================================================
   async getAppointments(): Promise<Appointment[]> {
     const response = await fetch(`${API_BASE_URL}/appointments`, {
       headers: this.getAuthHeaders(),
@@ -182,7 +199,9 @@ class ApiService {
     return this.handleResponse<void>(response);
   }
 
-  // Inventory - CRUD Completo
+  // ==========================================================
+  // INVENTORY SERVICE (Gateway rota: /inventory/**)
+  // ==========================================================
   async getMedications(): Promise<Medication[]> {
     const response = await fetch(`${API_BASE_URL}/inventory`, {
       headers: this.getAuthHeaders(),
